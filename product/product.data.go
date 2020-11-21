@@ -1,6 +1,7 @@
 package product
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/g0ng0n-dev/webservicito/database"
 	"sort"
@@ -16,13 +17,33 @@ var productMap = struct {
 
 }{m: make(map[int]Product)}
 
-func getProduct(productID int) *Product {
-	productMap.RLock()
-	defer productMap.RUnlock()
-	if product, ok := productMap.m[productID]; ok {
-		return &product
+func getProduct(productID int) (*Product, error) {
+	row := database.DbConn.QueryRow(` SELECT productId, 
+	manufacturer, 
+	sku, 
+	upc, 
+	pricePerUnit, 
+	quantityOnHand,
+	productName
+	FROM inventorydb.products
+	WHERE productId = ?; `, productID)
+
+	product := &Product{}
+
+	err := row.Scan(&product.ProductID,
+		&product.Manufacturer,
+		&product.Sku,
+		&product.Upc,
+		&product.PricePerUnit,
+		&product.QuantityOnHand,
+		&product.ProductName)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}else if err != nil {
+		return nil, err
 	}
-	return nil
+	return product, nil
 }
 
 func removeProduct(productID int){
@@ -84,7 +105,11 @@ func addOrUpdateFunc(product Product) (int, error) {
 	// if the product id is set, update, otherwise add
 	addOrUpdateID := -1
 	if product.ProductID > 0 {
-		oldProduct := getProduct(product.ProductID)
+		oldProduct, err := getProduct(product.ProductID)
+		if err != nil {
+			fmt.Println("Error On DB", err)
+			return addOrUpdateID, err
+		}
 		// if it exist, replace it, otherwise return error
 		if oldProduct == nil {
 			return 0, fmt.Errorf("product id [%d] doesn't exist ", product.ProductID)
