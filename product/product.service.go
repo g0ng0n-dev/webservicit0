@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/g0ng0n-dev/webservicito/cors"
+	"golang.org/x/net/websocket"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -15,6 +16,7 @@ const productsBasePath = "products"
 func SetupRoute(apiBasePath string){
 	handleProducts := http.HandlerFunc(productsHandler)
 	handleProduct := http.HandlerFunc(productHandler)
+	http.Handle("/websocket", websocket.Handler(productSocket))
 	http.Handle(fmt.Sprintf("%s/%s", apiBasePath, productsBasePath), cors.Middleware(handleProducts))
 	http.Handle(fmt.Sprintf("%s/%s/", apiBasePath, productsBasePath), cors.Middleware(handleProduct))
 }
