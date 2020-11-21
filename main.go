@@ -2,10 +2,9 @@ package main
 
 import (
 	"github.com/g0ng0n-dev/webservicito/database"
-	"log"
 	"github.com/g0ng0n-dev/webservicito/product"
+	_ "github.com/go-sql-driver/mysql"
 	"net/http"
-	_"github.com/go-sql-driver/mysql"
 )
 
 const apiBasePath = "/api"

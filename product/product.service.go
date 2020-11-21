@@ -21,7 +21,11 @@ func SetupRoute(apiBasePath string){
 func productsHandler(w http.ResponseWriter, r *http.Request){
 	switch r.Method{
 	case http.MethodGet:
-		productList := getProductList()
+		productList, err := getProductList()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		productsJson, err := json.Marshal(productList)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
