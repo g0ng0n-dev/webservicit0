@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/g0ng0n-dev/webservicito/database"
-	"sort"
 	"sync"
 )
 
@@ -46,10 +45,12 @@ func getProduct(productID int) (*Product, error) {
 	return product, nil
 }
 
-func removeProduct(productID int){
-	productMap.Lock()
-	defer productMap.Unlock()
-	delete(productMap.m, productID)
+func removeProduct(productID int) error{
+	_, err := database.DbConn.Query(`DELETE FROM inventorydb.products WHERE productId = ?`, productID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func getProductList() ([]Product, error) {
@@ -85,43 +86,51 @@ func getProductList() ([]Product, error) {
 	return products, nil
 }
 
-func getProductsIds() []int {
-	productMap.RLock()
-	productIds := []int{}
-	for key := range productMap.m {
-		productIds = append(productIds, key)
+
+func updateProduct(product Product) error {
+	_, err := database.DbConn.Exec(`UPDATE products SET 
+		manufacturer=?,
+		sku=?,
+		upc=?,
+		pricePerUnit=CAST(? AS DECIMAL (13,2)),
+		quantityOnHand=?,
+		productName=?
+		WHERE productId=?`,
+		product.Manufacturer,
+		product.Sku,
+		product.Upc,
+		product.PricePerUnit,
+		product.QuantityOnHand,
+		product.ProductName,
+		product.ProductID)
+	if err != nil {
+		return err
 	}
-	productMap.RUnlock()
-	sort.Ints(productIds)
-	return productIds
+	return nil
+
 }
 
-func getNextProductID() int {
-	productIDs := getProductsIds()
-	return productIDs[len(productIDs)-1] + 1
-}
+func insertProduct(product Product) (int, error){
+	result, err := database.DbConn.Exec(`INSERT INTO products
+	(manufacturer,
+		sku,
+		upc,
+		pricePerUnit,
+		quantityOnHand,
+		productName) VALUES (?,?,?,?,?,?)`,
+		product.Manufacturer,
+		product.Sku,
+		product.Upc,
+		product.PricePerUnit,
+		product.QuantityOnHand,
+		product.ProductName)
 
-func addOrUpdateFunc(product Product) (int, error) {
-	// if the product id is set, update, otherwise add
-	addOrUpdateID := -1
-	if product.ProductID > 0 {
-		oldProduct, err := getProduct(product.ProductID)
-		if err != nil {
-			fmt.Println("Error On DB", err)
-			return addOrUpdateID, err
-		}
-		// if it exist, replace it, otherwise return error
-		if oldProduct == nil {
-			return 0, fmt.Errorf("product id [%d] doesn't exist ", product.ProductID)
-		}
-		addOrUpdateID = product.ProductID
-	} else {
-		addOrUpdateID = getNextProductID()
-		product.ProductID = addOrUpdateID
+	if err != nil {
+		return 0, nil
 	}
-
-	productMap.Lock()
-	productMap.m[addOrUpdateID] = product
-	productMap.Unlock()
-	return addOrUpdateID, nil
+	insertID, err := result.LastInsertId()
+	if err != nil {
+		return 0, nil
+	}
+	return int(insertID), nil
 }
