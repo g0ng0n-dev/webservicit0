@@ -22,6 +22,7 @@ func productsHandler(w http.ResponseWriter, r *http.Request){
 	switch r.Method{
 	case http.MethodGet:
 		productList, err := getProductList()
+
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return

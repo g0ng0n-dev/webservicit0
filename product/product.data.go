@@ -1,12 +1,8 @@
 package product
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/g0ng0n-dev/webservicito/database"
-	"io/ioutil"
-	"log"
-	"os"
 	"sort"
 	"sync"
 )
@@ -19,35 +15,6 @@ var productMap = struct {
 	m map[int]Product
 
 }{m: make(map[int]Product)}
-
-func init() {
-	fmt.Println("loading products...")
-	prodMap, err := loadProductMap()
-	productMap.m = prodMap
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%d products loaded... \n", len(productMap.m))
-}
-
-func loadProductMap() (map[int]Product, error) {
-	fileName := "products.json"
-	_, err := os.Stat(fileName)
-	if os.IsNotExist(err){
-		return nil, fmt.Errorf("file [%s] does not exist", fileName)
-	}
-	file, _ := ioutil.ReadFile(fileName)
-	productList := make([]Product, 0)
-	err = json.Unmarshal([]byte(file), &productList)
-	if err != nil {
-		log.Fatal(err)
-	}
-	prodMap := make(map[int]Product)
-	for i := 0; i < len(productList); i++ {
-		prodMap[productList[i].ProductID] = productList[i]
-	}
-	return prodMap, nil
-}
 
 func getProduct(productID int) *Product {
 	productMap.RLock()
@@ -71,15 +38,17 @@ func getProductList() ([]Product, error) {
 	upc, 
 	pricePerUnit, 
 	quantityOnHand,
-	productName,
-	FROM products`)
+	productName
+	FROM inventorydb.products;`)
 
 	if err != nil {
+		fmt.Println("Error On DB", err)
 		return nil, err
 	}
 
 	defer results.Close()
 	products := make([]Product, 0)
+
 	for results.Next() {
 		var product Product
 		results.Scan(&product.ProductID,
@@ -91,6 +60,7 @@ func getProductList() ([]Product, error) {
 			&product.ProductName)
 		products = append(products, product)
 	}
+
 	return products, nil
 }
 
